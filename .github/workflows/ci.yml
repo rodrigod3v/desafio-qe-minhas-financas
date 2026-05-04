@@ -1,0 +1,109 @@
+name: Testes Automatizados (CI)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-tests:
+    name: Testes do Backend (xUnit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório de Testes
+        uses: actions/checkout@v4
+        with:
+          path: tests-repo
+      
+      # NOTA: Em um cenário real, também faríamos o checkout do código do backend. 
+      # Simulando o download do código principal da aplicação para as referências do .csproj:
+      # - name: Checkout Application Repository
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: 'usuario/minhas-financas-app'
+      #     path: app-repo
+
+      - name: Configurar .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restaurar dependências
+        run: dotnet restore tests-repo/Backend/MinhasFinancas.Tests.sln
+
+      - name: Compilar
+        run: dotnet build tests-repo/Backend/MinhasFinancas.Tests.sln --no-restore
+
+      - name: Testar
+        run: dotnet test tests-repo/Backend/MinhasFinancas.Tests.sln --no-build --verbosity normal
+
+  frontend-unit-tests:
+    name: Testes Unitários do Frontend (Vitest)
+    runs-on: ubuntu-latest
+    needs: backend-tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Dependências
+        run: |
+          cd Frontend
+          npm ci
+
+      - name: Executar Testes Unitários
+        run: |
+          cd Frontend
+          npx vitest run
+
+  frontend-e2e-tests:
+    name: Testes E2E do Frontend (Playwright)
+    runs-on: ubuntu-latest
+    needs: frontend-unit-tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Dependências
+        run: |
+          cd Frontend
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Iniciar API e Web (Docker Compose)
+        run: |
+          docker-compose up -d --build
+        
+      - name: Aguardar serviços
+        run: |
+          npx wait-on http://localhost:5000/health http://localhost:5173
+        
+      - name: Executar testes Playwright
+        run: |
+          cd Frontend
+          npx playwright test
+        env:
+          CI: true
+
+      - name: Upload do Relatório do Playwright
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: Frontend/playwright-report/
+          retention-days: 30
