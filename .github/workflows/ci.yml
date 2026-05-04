@@ -33,13 +33,13 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Restaurar dependências
-        run: dotnet restore tests-repo/Backend/MinhasFinancas.Tests.sln
+        run: dotnet restore Backend/MinhasFinancas.Tests.sln
 
       - name: Compilar
-        run: dotnet build tests-repo/Backend/MinhasFinancas.Tests.sln --no-restore
+        run: dotnet build Backend/MinhasFinancas.Tests.sln --no-restore
 
       - name: Testar
-        run: dotnet test tests-repo/Backend/MinhasFinancas.Tests.sln --no-build --verbosity normal
+        run: dotnet test Backend/MinhasFinancas.Tests.sln --no-build --verbosity normal
 
   frontend-unit-tests:
     name: Testes Unitários do Frontend (Vitest)
@@ -88,6 +88,7 @@ jobs:
       - name: Iniciar API e Web (Docker Compose)
         run: |
           docker-compose up -d --build
+        working-directory: ..
         
       - name: Aguardar serviços
         run: |
